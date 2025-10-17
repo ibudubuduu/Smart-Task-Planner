@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Task Planner - LLM Powered</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .llm-status {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .llm-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .llm-ollama { background-color: #10b981; }
+        .llm-huggingface { background-color: #f59e0b; }
+        .llm-fallback { background-color: #ef4444; }
+
+        .input-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .input-group textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s;
+        }
+
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .example-goals {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .example-goals h4 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .example-goals ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .example-goals li {
+            background: white;
+            margin: 4px 0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .example-goals li:hover {
+            background: #667eea;
+            color: white;
+            transform: translateX(4px);
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results-section {
+            display: none;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .plan-header {
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+
+        .plan-header h2 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .plan-meta {
+            color: #666;
+            font-size: 14px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .plan-llm-badge {
+            display: inline-flex;
+            align-items: center;
+            background: #f0f9ff;
+            color: #0369a1;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .timeline-info {
+            background: #f8f9ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .tasks-container {
+            margin-bottom: 25px;
+        }
+
+        .task-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .task-card:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            border-color: #667eea;
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .task-title {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+            flex: 1;
+        }
+
+        .task-priority {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .priority-high { background: #ffebee; color: #c62828; }
+        .priority-medium { background: #fff3e0; color: #ef6c00; }
+        .priority-low { background: #e8f5e8; color: #2e7d32; }
+
+        .task-meta {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .task-description {
+            color: #555;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .task-dependencies {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .milestones-section {
+            background: #f8f9ff;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .milestone {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .milestone:last-child {
+            border-bottom: none;
+        }
+
+        .milestone-date {
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 15px;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .milestone-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c62828;
+        }
+
+        .llm-setup-info {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .llm-setup-info h4 {
+            color: #9a3412;
+            margin-bottom: 8px;
+        }
+
+        .llm-setup-info p {
+            color: #9a3412;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .llm-setup-info code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .input-section, .results-section {
+                padding: 20px;
+            }
+
+            .task-meta {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .plan-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Smart Task Planner</h1>
+            <p class="subtitle">AI-powered task breakdown with LLM reasoning</p>
+            <div class="llm-status" id="llmStatus">
+                <span class="llm-indicator" id="llmIndicator"></span>
+                <span id="llmText">Loading...</span>
+            </div>
+        </div>
+
+        <div id="llmSetupInfo" class="llm-setup-info" style="display: none;">
+            <h4>Enhance with Local LLM</h4>
+            <p>For better task planning, consider setting up a local LLM:</p>
+            <p><strong>Recommended:</strong> <code>ollama pull llama2</code> (requires Ollama)</p>
+            <p><strong>Alternative:</strong> <code>pip install transformers torch</code></p>
+        </div>
+
+        <div class="input-section">
+            <div class="example-goals">
+                <h4>Example Goals (click to use):</h4>
+                <ul>
+                    <li onclick="setGoal('Launch a mobile app in 3 weeks')">Launch a mobile app in 3 weeks</li>
+                    <li onclick="setGoal('Organize a team building event in 10 days')">Organize a team building event in 10 days</li>
+                    <li onclick="setGoal('Learn Python programming in 1 month')">Learn Python programming in 1 month</li>
+                    <li onclick="setGoal('Complete a research paper in 2 weeks')">Complete a research paper in 2 weeks</li>
+                    <li onclick="setGoal('Plan a wedding in 6 months')">Plan a wedding in 6 months</li>
+                </ul>
+            </div>
+
+            <form id="planForm">
+                <div class="input-group">
+                    <label for="goalInput">Enter your goal:</label>
+                    <textarea 
+                        id="goalInput" 
+                        name="goal" 
+                        placeholder="Describe your goal with a timeline (e.g., 'Launch a product in 3 weeks', 'Learn data science in 2 months')"
+                        required
+                    ></textarea>
+                </div>
+                <button type="submit" class="generate-btn" id="generateBtn">
+                    Generate AI Task Plan
+                </button>
+            </form>
+        </div>
+
+        <div class="loading" id="loadingSection">
+            <div class="spinner"></div>
+            <p>AI is analyzing your goal and generating optimal task breakdown...</p>
+            <p style="font-size: 14px; color: #666; margin-top: 5px;">This may take 10-30 seconds depending on the LLM method</p>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="plan-header">
+                <h2 id="planGoal"></h2>
+                <div class="plan-meta">
+                    <span><span id="planDuration"></span> &bull; <span id="planTaskCount"></span> tasks</span>
+                    <div class="plan-llm-badge" id="planLlmBadge">
+                        AI: <span id="planLlmMethod"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="timeline-info" id="timelineInfo">
+                <strong>Timeline:</strong> <span id="timelineText"></span>
+            </div>
+
+            <div class="tasks-container">
+                <h3>Task Breakdown</h3>
+                <div id="tasksList"></div>
+            </div>
+
+            <div class="milestones-section">
+                <h3>Project Milestones</h3>
+                <div id="milestonesList"></div>
+            </div>
+        </div>
+
+        <div id="errorSection"></div>
+    </div>
+
+    <script>
+        async function checkLLMStatus() {
+            try {
+                const response = await fetch('/api/llm-status');
+                const data = await response.json();
+
+                const indicator = document.getElementById('llmIndicator');
+                const text = document.getElementById('llmText');
+                const setupInfo = document.getElementById('llmSetupInfo');
+
+                const method = data.current_method;
+
+                if (method === 'ollama') {
+                    indicator.className = 'llm-indicator llm-ollama';
+                    text.textContent = 'LLM: Ollama (High Quality)';
+                    setupInfo.style.display = 'none';
+                } else if (method === 'huggingface') {
+                    indicator.className = 'llm-indicator llm-huggingface';
+                    text.textContent = 'LLM: HuggingFace (Good Quality)';
+                    setupInfo.style.display = 'none';
+                } else {
+                    indicator.className = 'llm-indicator llm-fallback';
+                    text.textContent = 'LLM: Rule-based (Basic)';
+                    setupInfo.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Failed to check LLM status:', error);
+                document.getElementById('llmText').textContent = 'LLM: Status Unknown';
+            }
+        }
+
+        function setGoal(goal) {
+            document.getElementById('goalInput').value = goal;
+        }
+
+        document.getElementById('planForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const goal = document.getElementById('goalInput').value.trim();
+            if (!goal) {
+                showError('Please enter a goal');
+                return;
+            }
+
+            document.getElementById('generateBtn').disabled = true;
+            document.getElementById('loadingSection').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorSection').innerHTML = '';
+
+            try {
+                const response = await fetch('/api/plan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ goal: goal })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayPlan(data.plan, data.llm_method);
+                } else {
+                    showError(data.error || 'Failed to generate plan');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                document.getElementById('generateBtn').disabled = false;
+                document.getElementById('loadingSection').style.display = 'none';
+            }
+        });
+
+        function displayPlan(plan, llmMethod) {
+            document.getElementById('planGoal').textContent = plan.goal;
+            document.getElementById('planDuration').textContent = plan.estimated_duration;
+            document.getElementById('planTaskCount').textContent = plan.tasks.length;
+            document.getElementById('planLlmMethod').textContent = llmMethod.toUpperCase();
+
+            const timeline = plan.timeline;
+            document.getElementById('timelineText').textContent = 
+                `${timeline.start_date} to ${timeline.end_date}`;
+
+            const tasksList = document.getElementById('tasksList');
+            tasksList.innerHTML = '';
+
+            plan.tasks.forEach(task => {
+                const taskCard = document.createElement('div');
+                taskCard.className = 'task-card';
+
+                const dependencyText = task.dependencies && task.dependencies.length > 0 
+                    ? `Dependencies: Task ${task.dependencies.join(', Task ')}`
+                    : 'Dependencies: None';
+
+                taskCard.innerHTML = `
+                    <div class="task-header">
+                        <div class="task-title">${task.title}</div>
+                        <div class="task-priority priority-${task.priority.toLowerCase()}">${task.priority}</div>
+                    </div>
+                    <div class="task-meta">
+                        <span>Date: ${task.deadline}</span>
+                        <span>Hours: ${task.estimated_hours}h</span>
+                        <span>Category: ${task.category}</span>
+                    </div>
+                    <div class="task-description">${task.description}</div>
+                    <div class="task-dependencies">${dependencyText}</div>
+                `;
+
+                tasksList.appendChild(taskCard);
+            });
+
+            const milestonesList = document.getElementById('milestonesList');
+            milestonesList.innerHTML = '';
+
+            timeline.milestones.forEach(milestone => {
+                const milestoneDiv = document.createElement('div');
+                milestoneDiv.className = 'milestone';
+                milestoneDiv.innerHTML = `
+                    <div class="milestone-date">${milestone.date}</div>
+                    <div class="milestone-name">${milestone.name}</div>
+                `;
+                milestonesList.appendChild(milestoneDiv);
+            });
+
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function showError(message) {
+            const errorSection = document.getElementById('errorSection');
+            errorSection.innerHTML = `
+                <div class="error-message">
+                    Error: ${message}
+                </div>
+            `;
+        }
+
+        window.addEventListener('DOMContentLoaded', checkLLMStatus);
+    </script>
+</body>
+</html>
