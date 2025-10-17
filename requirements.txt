@@ -1,0 +1,15 @@
+Flask==2.3.3
+flask-cors==4.0.0
+
+# LLM Integration Options (install based on your preference)
+# Option 1: Hugging Face Transformers (local models)
+transformers>=4.30.0
+torch>=2.0.0
+tokenizers>=0.13.0
+
+# Option 2: Ollama client (if using Ollama server)
+requests>=2.31.0
+
+# Optional: For better model performance
+accelerate>=0.20.0
+sentencepiece>=0.1.99
